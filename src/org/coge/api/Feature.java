@@ -1,6 +1,11 @@
 package org.coge.api;
 
+import java.io.IOException;
 import java.util.List;
+
+import us.monoid.json.JSONException;
+import us.monoid.json.JSONArray;
+import us.monoid.json.JSONObject;
 
 /**
  * Encapsulate a Feature record. Doesn't extend CoGeObject since it doesn't contain name and description.
@@ -50,6 +55,27 @@ public class Feature {
         this.id = id;
         this.type = type;
     }
+
+    /**
+     * Construct from a JSON object and CoGe instance (because we may need to fetch the genome).
+     */
+    protected Feature (JSONObject json, CoGe coge) throws IOException, JSONException {
+        if (json.has("id")) {
+            id = json.getInt("id");
+            type = json.getString("type");
+            if (json.has("chromosome")) chromosome = json.getString("chromosome");
+            if (json.has("genome")) {
+                JSONObject go = json.getJSONObject("genome");
+                int gid = go.getInt("id");
+                genome = coge.fetchGenome(gid);
+            }
+            if (json.has("start")) start = json.getInt("start");
+            if (json.has("stop")) stop = json.getInt("stop");
+            if (json.has("strand")) strand = json.getInt("strand");
+            if (json.has("sequence")) sequence = json.getString("sequence");
+        }
+    }
+
 
     ////////// getters and setters //////////
 

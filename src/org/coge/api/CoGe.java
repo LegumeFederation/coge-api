@@ -17,7 +17,7 @@ import us.monoid.web.Resty;
 import us.monoid.web.JSONResource;
 
 /**
- * Core class to make REST calls againt a CoGe web service.
+ * The workhorse core class to make REST calls againt a CoGe web service and instantiate the various objects.
  *
  * @author Sam Hokin
  */
@@ -73,30 +73,11 @@ public class CoGe {
      */
     public Organism fetchOrganism(int id) throws IOException, JSONException {
         JSONObject json = fetch("organisms", id);
-        return getOrganismFromJSON(json);
+        return new Organism(json);
     }
 
     /**
-     * Populate an Organism from a JSONObject.
-     */
-    Organism getOrganismFromJSON(JSONObject json) throws IOException, JSONException {
-        int id = json.getInt("id");
-        String name = json.getString("name");
-        String description = json.getString("description");
-        Organism organism = new Organism(id, name, description);
-        if (json.has("genomes")) {
-            List<Integer> genomes = new ArrayList<Integer>();
-            JSONArray genomeStrings = json.getJSONArray("genomes");
-            for (int i=0; i<genomeStrings.length(); i++) {
-                genomes.add(Integer.parseInt(genomeStrings.get(i).toString()));
-            }
-            organism.setGenomes(genomes);
-        }
-        return organism;
-    }
-
-    /**
-     * Add a new organism. The response will contain the organism id if successful.
+     * Add a new organism. The response will contain the organism id if successful. The promised success flag is currently not present.
      */
     public CoGeResponse addOrganism(String name, String description) throws CoGeException, IOException, JSONException {
         if (username==null || token==null) throw CoGeException.missingAuthException();
@@ -105,12 +86,8 @@ public class CoGe {
         json.put("name", name);
         json.put("description", description);
         Content content = resty.content(json);
-        JSONObject response = resty.json(url, content).object();
-        // DEBUG
-        // System.err.println(url);
-        // System.err.println(json.toString());
-        // System.err.println(response.toString());
-        //
+        JSONResource resource = resty.json(url, Resty.put(Resty.content(json)));
+        JSONObject response = resource.object();
         if (isError(response)) throw new CoGeException(response);
         return new CoGeResponse(response);
     }
@@ -140,47 +117,7 @@ public class CoGe {
      */
     public Genome fetchGenome(int id) throws IOException, JSONException {
         JSONObject json = fetch("genomes", id);
-        return getGenomeFromJSON(json);
-    }
-
-    /**
-     * Populate a Genome from a JSONObject.
-     */
-    Genome getGenomeFromJSON(JSONObject json) throws IOException, JSONException {
-        int id = json.getInt("id");
-        String name = json.getString("name");
-        String description = json.getString("description");
-        Genome genome = new Genome(id, name, description);
-        if (json.has("link")) genome.setLink(json.getString("link"));
-        if (json.has("version")) genome.setVersion(json.getString("version"));
-        if (json.has("organism")) {
-            JSONObject org = json.getJSONObject("organism");
-            genome.setOrganism(getOrganismFromJSON(org));
-        }
-        if (json.has("sequence_type")) {
-            JSONObject sto = json.getJSONObject("sequence_type");
-            genome.setSequenceType(new SequenceType(sto.getString("name"), sto.getString("description")));
-        }
-        if (json.has("restricted")) genome.setRestricted(json.getBoolean("restricted"));
-        if (json.has("chromosome_count")) genome.setChromosomeCount(json.getInt("chromosome_count"));
-        if (json.has("additional_metadata")) {
-            List<Metadata> metadata = new ArrayList<Metadata>();
-            JSONArray metarray = json.getJSONArray("additional_metadata");
-            for (int i=0; i<metarray.length(); i++) {
-                JSONObject meta = metarray.getJSONObject(i);
-                metadata.add(new Metadata(meta.getString("type_group"), meta.getString("type"), meta.getString("text"), meta.getString("link")));
-            }
-            genome.setAdditionalMetadata(metadata);
-        }
-        if (json.has("experiments")) {
-            List<Integer> experiments = new ArrayList<Integer>();
-            JSONArray exparray = json.getJSONArray("experiments");
-            for (int i=0; i<exparray.length(); i++) {
-                experiments.add(exparray.getInt(i));
-            }
-            genome.setExperiments(experiments);
-        }
-        return genome;
+        return new Genome(json);
     }
 
     /**
@@ -238,7 +175,7 @@ public class CoGe {
                 JSONArray ja = jo.getJSONArray(jkey);
                 for (int i=0; i<ja.length(); i++) {
                     JSONObject json = ja.getJSONObject(i);
-                    Feature f = getFeatureFromJSON(json);
+                    Feature f = new Feature(json, this);
                     features.add(f);
                 }
             }
@@ -254,27 +191,7 @@ public class CoGe {
         String url = baseUrl+"/features/"+id;
         JSONResource jr = resty.json(url);
         JSONObject json = jr.object();
-        return getFeatureFromJSON(json);
-    }
-
-    /**
-     * Populate a Feature from a JSONObject.
-     */
-    Feature getFeatureFromJSON(JSONObject json) throws IOException, JSONException {
-        int id = json.getInt("id"); // all returned objects should have an id
-        Feature f = new Feature(id, json.getString("type"));
-        if (json.has("chromosome")) f.setChromosome(json.getString("chromosome"));
-        if (json.has("genome")) {
-            JSONObject go = json.getJSONObject("genome");
-            int gid = go.getInt("id");
-            Genome g = fetchGenome(gid);
-            f.setGenome(g);
-        }
-        if (json.has("start")) f.setStart(json.getInt("start"));
-        if (json.has("stop")) f.setStop(json.getInt("stop"));
-        if (json.has("strand")) f.setStrand(json.getInt("strand"));
-        if (json.has("sequence")) f.setSequence(json.getString("sequence"));
-        return f;
+        return new Feature(json, this);
     }
 
     /**
@@ -322,40 +239,7 @@ public class CoGe {
      */
     public Experiment fetchExperiment(int id) throws IOException, JSONException {
         JSONObject json = fetch("experiments", id);
-        return getExperimentFromJSON(json);
-    }
-
-    /**
-     * Populate an Experiment from a JSONObject.
-     */
-    Experiment getExperimentFromJSON(JSONObject json) throws IOException, JSONException {
-        int id = json.getInt("id");
-        String name = json.getString("name");
-        String description = json.getString("description");
-        Experiment experiment = new Experiment(id, name, description);
-        if (json.has("version")) experiment.setVersion(json.getString("version"));
-        if (json.has("genome_id")) experiment.setGenomeId(json.getInt("genome_id"));
-        if (json.has("source")) experiment.setSource(json.getString("source"));
-        if (json.has("types")) {
-            Map<String,String> types = new LinkedHashMap<String,String>();
-            JSONArray typarray = json.getJSONArray("types");
-            for (int i=0; i<typarray.length(); i++) {
-                JSONObject type = typarray.getJSONObject(i);
-                types.put(type.getString("name"), type.getString("description"));
-            }
-            experiment.setTypes(types);
-        }
-        if (json.has("restricted")) experiment.setRestricted(json.getBoolean("restricted"));
-        if (json.has("additional_metadata")) {
-            List<Metadata> metadata = new ArrayList<Metadata>();
-            JSONArray metarray = json.getJSONArray("additional_metadata");
-            for (int i=0; i<metarray.length(); i++) {
-                JSONObject meta = metarray.getJSONObject(i);
-                metadata.add(new Metadata(meta.getString("type_group"), meta.getString("type"), meta.getString("text"), meta.getString("link")));
-            }
-            experiment.setAdditionalMetadata(metadata);
-        }
-        return experiment;
+        return new Experiment(json);
     }
 
     ////////// Notebook //////////
@@ -382,39 +266,9 @@ public class CoGe {
      */
     public Notebook fetchNotebook(int id) throws IOException, JSONException {
         JSONObject json = fetch("notebooks", id);
-        return getNotebookFromJSON(json);
+        return new Notebook(json);
     }
 
-    /**
-     * Populate an Notebook from a JSONObject.
-     */
-    Notebook getNotebookFromJSON(JSONObject json) throws IOException, JSONException {
-        int id = json.getInt("id");
-        String name = json.getString("name");
-        String description = json.getString("description");
-        Notebook notebook = new Notebook(id, name, description);
-        if (json.has("type")) notebook.setType(json.getString("type"));
-        if (json.has("restricted")) notebook.setRestricted(json.getBoolean("restricted"));
-        if (json.has("additional_metadata")) {
-            List<Metadata> metadata = new ArrayList<Metadata>();
-            JSONArray metarray = json.getJSONArray("additional_metadata");
-            for (int i=0; i<metarray.length(); i++) {
-                JSONObject meta = metarray.getJSONObject(i);
-                metadata.add(new Metadata(meta.getString("type_group"), meta.getString("type"), meta.getString("text"), meta.getString("link")));
-            }
-            notebook.setAdditionalMetadata(metadata);
-        }
-        if (json.has("items")) {
-            List<Item> items = new ArrayList<Item>();
-            JSONArray itemarray = json.getJSONArray("items");
-            for (int i=0; i<itemarray.length(); i++) {
-                JSONObject item = itemarray.getJSONObject(i);
-                items.add(new Item(item.getInt("id"), item.getString("type")));
-            }
-            notebook.setItems(items);
-        }
-        return notebook;
-    }
 
     ////////// Group //////////
 
@@ -456,28 +310,7 @@ public class CoGe {
      */
     public Group fetchGroup(int id) throws IOException, JSONException {
         JSONObject json = fetch("groups", id);
-        return getGroupFromJSON(json);
-    }
-
-    /**
-     * Populate an Group from a JSONObject.
-     */
-    Group getGroupFromJSON(JSONObject json) throws IOException, JSONException {
-        int id = json.getInt("id");
-        String name = json.getString("name");
-        String description = json.getString("description");
-        String role = json.getString("role");
-        Group group = new Group(id, name, description, role);
-        if (json.has("users")) {
-            List<Integer> users = new ArrayList<Integer>();
-            JSONArray usearray = json.getJSONArray("users");
-            for (int i=0; i<usearray.length(); i++) {
-                int user = usearray.getInt(i);
-                users.add(user);
-            }
-            group.setUsers(users);
-        }
-        return group;
+        return new Group(json);
     }
 
     ////////// DataStoreList //////////
@@ -492,23 +325,8 @@ public class CoGe {
         String url = baseUrl+"/irods/list/"+path+"?username="+username+"&token="+token;
         JSONResource jr = resty.json(url);
         JSONObject jo = jr.object();
-        DataStoreList dsl = new DataStoreList();
         if (isError(jo)) throw new CoGeException(jo);
-        if (jo.has("path")) dsl.setPath(jo.getString("path"));
-        if (jo.has("items")) {
-            JSONArray ja = jo.getJSONArray("items");
-            for (int i=0; i<ja.length(); i++) {
-                JSONObject json = ja.getJSONObject(i);
-                Map<String,String> item = new LinkedHashMap<String,String>();
-                Iterator<String> keys = json.keys();
-                while (keys.hasNext()) {
-                    String key = keys.next();
-                    item.put(key, json.getString(key));
-                }
-                dsl.addItem(item);
-            }
-        }
-        return dsl;
+        return new DataStoreList(jo);
     }
 
     ////////// Generic //////////
@@ -550,7 +368,7 @@ public class CoGe {
     /**
      * Print out an arbitrary JSON response, for testing purposes.
      *
-     * @param url the full API url
+     * @param url the full API URL
      */
     void printResponse(String url) throws IOException, JSONException {
         JSONResource jr  = resty.json(url);

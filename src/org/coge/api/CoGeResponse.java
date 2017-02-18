@@ -30,6 +30,13 @@ public class CoGeResponse {
         return siteURL;
     }
 
+    public String toString() {
+        String out = "";
+        if (id!=0) out += "id="+id+";";
+        out += "success="+success+";";
+        if (siteURL!=null) out += "siteURL="+siteURL+";";
+        return out;
+    }
 
 }
 

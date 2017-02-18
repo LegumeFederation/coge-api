@@ -1,6 +1,12 @@
 package org.coge.api;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.ArrayList;
+
+import us.monoid.json.JSONException;
+import us.monoid.json.JSONArray;
+import us.monoid.json.JSONObject;
 
 /**
  * Encapsulate a Genome record.
@@ -30,6 +36,42 @@ public class Genome extends CoGeObject {
      */
     protected Genome(CoGeObject object) {
         super(object);
+    }
+
+    /**
+     * Construct from a JSONObject.
+     */
+    protected Genome(JSONObject json) throws IOException, JSONException {
+        super(json);
+        if (id!=0) {
+            if (json.has("link")) link = json.getString("link");
+            if (json.has("version")) version = json.getString("version");
+            if (json.has("organism")) {
+                JSONObject org = json.getJSONObject("organism");
+                organism = new Organism(org);
+            }
+            if (json.has("sequence_type")) {
+                JSONObject sto = json.getJSONObject("sequence_type");
+                sequenceType = new SequenceType(sto.getString("name"), sto.getString("description"));
+            }
+            if (json.has("restricted")) restricted = json.getBoolean("restricted");
+            if (json.has("chromosome_count")) chromosomeCount = json.getInt("chromosome_count");
+            if (json.has("additional_metadata")) {
+                additionalMetadata = new ArrayList<Metadata>();
+                JSONArray metarray = json.getJSONArray("additional_metadata");
+                for (int i=0; i<metarray.length(); i++) {
+                    JSONObject meta = metarray.getJSONObject(i);
+                    additionalMetadata.add(new Metadata(meta.getString("type_group"), meta.getString("type"), meta.getString("text"), meta.getString("link")));
+                }
+            }
+            if (json.has("experiments")) {
+                experiments = new ArrayList<Integer>();
+                JSONArray exparray = json.getJSONArray("experiments");
+                for (int i=0; i<exparray.length(); i++) {
+                    experiments.add(exparray.getInt(i));
+                }
+            }
+        }
     }
 
     void setLink(String link) {

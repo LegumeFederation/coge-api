@@ -1,6 +1,12 @@
 package org.coge.api;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.ArrayList;
+
+import us.monoid.json.JSONException;
+import us.monoid.json.JSONArray;
+import us.monoid.json.JSONObject;
 
 /**
  * Encapsulate an Organism record.
@@ -26,10 +32,30 @@ public class Organism extends CoGeObject {
     }
 
     /**
+     * Construct an Organism from a JSONObject.
+     */
+    protected Organism(JSONObject json) throws IOException, JSONException {
+        super(json);
+        if (id!=0) {
+            if (json.has("genomes")) {
+                genomes = new ArrayList<Integer>();
+                JSONArray genomeStrings = json.getJSONArray("genomes");
+                for (int i=0; i<genomeStrings.length(); i++) {
+                    genomes.add(Integer.parseInt(genomeStrings.get(i).toString()));
+                }
+            }
+        }
+    }
+
+    /**
      * Set the genomes list.
      */
     protected void setGenomes(List<Integer> genomes) {
         this.genomes = genomes;
+    }
+
+    public List<Integer> getGenomes() {
+        return genomes;
     }
 
 }

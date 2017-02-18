@@ -1,7 +1,10 @@
 package org.coge.api;
 
-import java.util.List;
-import java.util.ArrayList;
+import java.io.IOException;
+
+import us.monoid.json.JSONException;
+import us.monoid.json.JSONArray;
+import us.monoid.json.JSONObject;
 
 /**
  * The abstract object which contains data and methods common to all objects.
@@ -42,6 +45,17 @@ public class CoGeObject {
         this.id = id;
         this.name = name;
         this.description = description;
+    }
+
+    /**
+     * Construct from a JSON object containing at least id.
+     */
+    protected CoGeObject(JSONObject json) throws IOException, JSONException {
+        if (json.has("id")) {
+            id = json.getInt("id");
+            if (json.has("name")) name = json.getString("name");
+            if (json.has("description")) description = json.getString("description");
+        }
     }
 
     /**
