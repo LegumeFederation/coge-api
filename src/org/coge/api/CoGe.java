@@ -85,7 +85,6 @@ public class CoGe {
         JSONObject json = new JSONObject();
         json.put("name", name);
         json.put("description", description);
-        Content content = resty.content(json);
         JSONResource resource = resty.json(url, Resty.put(Resty.content(json)));
         JSONObject response = resource.object();
         if (isError(response)) throw new CoGeException(response);
@@ -153,6 +152,37 @@ public class CoGe {
         int i = 0;
         while ((i=stream.read())!=-1) buffer.append((char)i);
         return buffer.toString();
+    }
+
+    /**
+     * Add a new genome. The response will contain the genome id if successful.
+     * PUT [base_url/genomes]
+     */
+    public CoGeResponse addGenome(Organism organism, String name, String description, String version, String sourceName, String type, boolean restricted, String irodsPath)
+        throws CoGeException, IOException, JSONException {
+        if (username==null || token==null) throw CoGeException.missingAuthException();
+        String url = baseUrl+"/genomes?username="+username+"&token="+token;
+        JSONObject json = new JSONObject();
+        json.put("organism_id", organism.getId());
+        JSONObject metadata = new JSONObject();
+        metadata.put("name", name);
+        metadata.put("description", description);
+        metadata.put("version", version);
+        metadata.put("source_name", sourceName);
+        metadata.put("type", type);
+        metadata.put("restricted", restricted);
+        json.put("metadata", metadata);
+        JSONArray sourceData = new JSONArray();
+        JSONObject source = new JSONObject();
+        source.put("type", "irods");
+        source.put("path", irodsPath);
+        sourceData.put(source);
+        json.put("source_data", sourceData);
+        System.out.println(json);
+        JSONResource resource = resty.json(url, Resty.put(Resty.content(json)));
+        JSONObject response = resource.object();
+        if (isError(response)) throw new CoGeException(response);
+        return new CoGeResponse(response);
     }
 
     ////////// Feature //////////
