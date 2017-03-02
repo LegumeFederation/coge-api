@@ -59,8 +59,8 @@ public class CoGe {
      */
     public List<Organism> searchOrganism(String searchTerm) throws IOException, JSONException {
         List<Organism> organisms = new ArrayList<Organism>();
-        for (CoGeObject object : search("organisms", searchTerm)) {
-            organisms.add(new Organism(object));
+        for (JSONObject json : search("organisms", searchTerm)) {
+            organisms.add(new Organism(json));
         }
         return organisms;
     }
@@ -98,12 +98,14 @@ public class CoGe {
      * GET [base_url/genomes/search/term]
      *
      * @param searchTerm a text string to search on
+     * @param includeDeleted set true if you'd like to include deleted genomes in the results
+     * @return a list of populated Genome instances
      */
-    public List<Genome> searchGenome(String searchTerm) throws IOException, JSONException {
+    public List<Genome> searchGenome(String searchTerm, boolean includeDeleted) throws IOException, JSONException {
         List<Genome> genomes = new ArrayList<Genome>();
-        for (CoGeObject object : search("genomes", searchTerm)) {
-            Genome g = new Genome(object);
-            if (g.name!=null || g.description!=null) genomes.add(g);
+        for (JSONObject json : search("genomes", searchTerm)) {
+            Genome g = new Genome(json);
+            if ((g.isDeleted() && includeDeleted) || !g.isDeleted()) genomes.add(g);
         }
         return genomes;
     }
@@ -155,22 +157,24 @@ public class CoGe {
     }
 
     /**
-     * Add a new genome. The response will contain the genome id if successful.
+     * Add a new genome from iRODS. The response will contain the genome id if successful.
      * PUT [base_url/genomes]
+     *
+     * @param genome the genome to add to CoGe, with as many fields populated as you can (but lacking id, of course).
+     * @param irodsPath the path to the FASTA file on the iRODS DataStore (it can be gzipped).
      */
-    public CoGeResponse addGenome(Organism organism, String name, String description, String version, String sourceName, String type, boolean restricted, String irodsPath)
-        throws CoGeException, IOException, JSONException {
+    public CoGeResponse addGenome(Genome genome, String irodsPath) throws CoGeException, IOException, JSONException {
         if (username==null || token==null) throw CoGeException.missingAuthException();
         String url = baseUrl+"/genomes?username="+username+"&token="+token;
         JSONObject json = new JSONObject();
-        json.put("organism_id", organism.getId());
+        json.put("organism_id", genome.getOrganism().getId());
         JSONObject metadata = new JSONObject();
-        metadata.put("name", name);
-        metadata.put("description", description);
-        metadata.put("version", version);
-        metadata.put("source_name", sourceName);
-        metadata.put("type", type);
-        metadata.put("restricted", restricted);
+        metadata.put("name", genome.getName());
+        metadata.put("description", genome.getDescription());
+        metadata.put("version", genome.getVersion());
+        metadata.put("source_name", genome.getSourceName());
+        metadata.put("sequence_type", genome.getSequenceType().getName());
+        metadata.put("restricted", genome.isRestricted());
         json.put("metadata", metadata);
         JSONArray sourceData = new JSONArray();
         JSONObject source = new JSONObject();
@@ -178,11 +182,56 @@ public class CoGe {
         source.put("path", irodsPath);
         sourceData.put(source);
         json.put("source_data", sourceData);
-        System.out.println(json);
         JSONResource resource = resty.json(url, Resty.put(Resty.content(json)));
         JSONObject response = resource.object();
         if (isError(response)) throw new CoGeException(response);
         return new CoGeResponse(response);
+    }
+
+    /**
+     * Update a genome with the non-null/zero values contained in the supplied Genome object. The genome must at least have its id value set.
+     * The response simply carries the success flag. 
+     * THIS IS NOT YET IMPLEMENTED AS OF 2/17
+     * POST [base_url/genomes/id]
+     *
+     * @param genome the genome instance which is used to update its CoGe version; id is essential, other fields are updated if populated.
+     */
+    public boolean updateGenome(Genome genome) throws CoGeException, IOException, JSONException {
+        if (username==null || token==null) throw CoGeException.missingAuthException();
+        String url = baseUrl+"/genomes/"+genome.getId()+"?username="+username+"&token="+token;
+        JSONObject json = new JSONObject();
+        if (genome.getOrganism()!=null) json.put("organism_id", genome.getOrganism().getId());
+        JSONObject metadata = new JSONObject();
+        if (genome.getName()!=null) metadata.put("name", genome.getName());
+        if (genome.getDescription()!=null) metadata.put("description", genome.getDescription());
+        if (genome.getVersion()!=null) metadata.put("version", genome.getVersion());
+        if (genome.getSourceName()!=null) metadata.put("source_name", genome.getSourceName());
+        if (genome.getSequenceType()!=null) metadata.put("sequence_type", genome.getSequenceType());
+        metadata.put("restricted", genome.isRestricted()); // always set, may be default
+        json.put("metadata", metadata);
+        JSONResource resource = resty.json(url, Resty.content(json));
+        JSONObject response = resource.object();
+        if (isError(response)) throw new CoGeException(response);
+        CoGeResponse cogeResponse = new CoGeResponse(response);
+        return cogeResponse.getSuccess();
+    }
+
+    /**
+     * Delete a genome. Returns success boolean. Genome only requires an id.
+     * THIS IS NOT YET IMPLEMENTED AS OF 2/17
+     * DELETE [base_url/genomes/id]
+     *
+     * @param genome the genome to delete from CoGe. Only the id is used.
+     */
+    public boolean deleteGenome(Genome genome) throws CoGeException, IOException, JSONException {
+        if (username==null || token==null) throw CoGeException.missingAuthException();
+        String url = baseUrl+"/genomes/"+genome.getId()+"?username="+username+"&token="+token;
+        System.out.println("DELETE URL:"+url);
+        JSONResource resource = resty.json(url, Resty.delete());
+        JSONObject response = resource.object();
+        if (isError(response)) throw new CoGeException(response);
+        CoGeResponse cogeResponse = new CoGeResponse(response);
+        return cogeResponse.getSuccess();
     }
 
     ////////// Feature //////////
@@ -245,6 +294,40 @@ public class CoGe {
         }
     }
 
+    /**
+     * Feature Add - load a new feature set onto a genome.
+     * PUT [base_url/features]
+     *
+     * @param genome the genome to add the features to
+     * @param name the name associated with this feature set
+     * @param description the description of this feature set
+     * @param version the version of this feature set
+     * @param sourceName the name of the source of this feature set
+     * @param irodsPath the path to the GFF file containing the features (it can be gzipped)
+     */
+    public CoGeResponse addFeatures(Genome genome, String name, String description, String version, String sourceName, String irodsPath) throws CoGeException, IOException, JSONException {
+        if (username==null || token==null) throw CoGeException.missingAuthException();
+        String url = baseUrl+"/features?username="+username+"&token="+token;
+        JSONObject json = new JSONObject();
+        json.put("genome_id", genome.getId());
+        JSONObject metadata = new JSONObject();
+        metadata.put("name", name);
+        metadata.put("description", description);
+        metadata.put("version", version);
+        metadata.put("source_name", sourceName);
+        json.put("metadata", metadata);
+        JSONArray sourceData = new JSONArray();
+        JSONObject source = new JSONObject();
+        source.put("type", "irods");
+        source.put("path", irodsPath);
+        sourceData.put(source);
+        json.put("source_data", sourceData);
+        JSONResource resource = resty.json(url, Resty.put(Resty.content(json)));
+        JSONObject response = resource.object();
+        if (isError(response)) throw new CoGeException(response);
+        return new CoGeResponse(response);
+    }
+
     ////////// Experiment //////////
 
     /**
@@ -255,8 +338,8 @@ public class CoGe {
      */
     public List<Experiment> searchExperiment(String searchTerm) throws IOException, JSONException {
         List<Experiment> experiments = new ArrayList<Experiment>();
-        for (CoGeObject object : search("experiments", searchTerm)) {
-            experiments.add(new Experiment(object));
+        for (JSONObject json : search("experiments", searchTerm)) {
+            experiments.add(new Experiment(json));
         }
         return experiments;
     }
@@ -282,8 +365,8 @@ public class CoGe {
      */
     public List<Notebook> searchNotebook(String searchTerm) throws IOException, JSONException {
         List<Notebook> notebooks = new ArrayList<Notebook>();
-        for (CoGeObject object : search("notebooks", searchTerm)) {
-            notebooks.add(new Notebook(object));
+        for (JSONObject json : search("notebooks", searchTerm)) {
+            notebooks.add(new Notebook(json));
         }
         return notebooks;
     }
@@ -363,34 +446,37 @@ public class CoGe {
 
     /**
      * Generic search method
+     *
+     * @param objKey the key for the type of object to be searched for, e.g. genomes
+     * @param searchTerm the term on which to search
+     * @return a list of JSONObject instances which describe the found objects
      */
-    protected List<CoGeObject> search(String orgKey, String searchTerm) throws IOException, JSONException {
-        String url = baseUrl+"/"+orgKey+"/search/"+searchTerm.replaceAll(" ","%20"); // should use a special-purpose method for this
-        List<CoGeObject> objects = new ArrayList<CoGeObject>();
+    protected List<JSONObject> search(String objKey, String searchTerm) throws IOException, JSONException {
+        String url = baseUrl+"/"+objKey+"/search/"+searchTerm.replaceAll(" ","%20"); // should use a special-purpose method for this
+        List<JSONObject> jsons = new ArrayList<JSONObject>();
         JSONResource jr  = resty.json(url);
         JSONObject jo = jr.object();
         Iterator<String> joit = jo.keys();
         while (joit.hasNext()) {
             String jkey = joit.next();
-            if (jkey.equals(orgKey)) {
+            if (jkey.equals(objKey)) {
                 JSONArray ja = jo.getJSONArray(jkey);
                 for (int i=0; i<ja.length(); i++) {
-                    JSONObject jjo = ja.getJSONObject(i);
-                    int id = jjo.getInt("id"); // all returned objects should have an id
-                    String name = jjo.getString("name");
-                    String description = jjo.getString("description");
-                    objects.add(new CoGeObject(id, name, description));
+                    jsons.add(ja.getJSONObject(i));
                 }
             }
         }
-        return objects;
+        return jsons;
     }
 
     /**
      * Generic fetch method
+     * @param objKey the key for the type of object to be fetched, e.g. genomes
+     * @param id the object's id
+     * @return a JSONObject describing the fetched object
      */
-    protected JSONObject fetch(String orgKey, int id) throws IOException, JSONException {
-        String url = baseUrl+"/"+orgKey+"/"+id;
+    protected JSONObject fetch(String objKey, int id) throws IOException, JSONException {
+        String url = baseUrl+"/"+objKey+"/"+id;
         JSONResource jr = resty.json(url);
         return jr.object();
     }

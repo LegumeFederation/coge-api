@@ -1,9 +1,0 @@
-package org.coge.api;
-
-/**
- * Wraps a JSON error message returned by the CoGe REST API.
- */
-public class CoGeException extends Exception {
-
-
-}

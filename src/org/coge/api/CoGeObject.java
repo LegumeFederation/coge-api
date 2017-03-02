@@ -26,14 +26,14 @@ public class CoGeObject {
     /**
      * Minimal constructor, just id.
      */
-    protected CoGeObject(int id) {
+    public CoGeObject(int id) {
         this.id = id;
     }
 
     /**
      * Nearly minimal constructor, just id and name.
      */
-    protected CoGeObject(int id, String name) {
+    public CoGeObject(int id, String name) {
         this.id = id;
         this.name = name;
     }
@@ -41,21 +41,19 @@ public class CoGeObject {
     /**
      * Standard constructor, id, name and description.
      */
-    protected CoGeObject(int id, String name, String description) {
+    public CoGeObject(int id, String name, String description) {
         this.id = id;
         this.name = name;
         this.description = description;
     }
 
     /**
-     * Construct from a JSON object containing at least id.
+     * Construct from a JSON object. Don't require id, maybe some objects don't have it populated.
      */
     protected CoGeObject(JSONObject json) throws IOException, JSONException {
-        if (json.has("id")) {
-            id = json.getInt("id");
-            if (json.has("name")) name = json.getString("name");
-            if (json.has("description")) description = json.getString("description");
-        }
+        if (json.has("id")) id = json.getInt("id");
+        if (json.has("name")) name = json.getString("name");
+        if (json.has("description")) description = json.getString("description");
     }
 
     /**
@@ -65,6 +63,27 @@ public class CoGeObject {
         this.id = object.id;
         this.name = object.name;
         this.description = object.description;
+    }
+
+    /**
+     * Set the id.
+     */
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    /**
+     * Set the name.
+     */
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    /**
+     * Set the description.
+     */
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     /**
