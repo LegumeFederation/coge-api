@@ -52,7 +52,7 @@ public class CoGe {
     ////////// Organism //////////
 
     /**
-     * Organism search
+     * Organism Search
      * GET [base_url/organisms/search/term]
      *
      * @param searchTerm a text string to search on
@@ -66,7 +66,7 @@ public class CoGe {
     }
 
     /**
-     * Organism fetch - used to populate the genomes
+     * Organism Fetch - used to populate the genomes
      * GET [base_url/organisms/id]
      * 
      * @param id the organism id
@@ -77,6 +77,8 @@ public class CoGe {
     }
 
     /**
+     * Organism Add
+     * PUT [base_url/organisms]
      * Add a new organism. The response will contain the organism id if successful. The promised success flag is currently not present.
      */
     public CoGeResponse addOrganism(String name, String description) throws CoGeException, IOException, JSONException {
@@ -94,7 +96,7 @@ public class CoGe {
     ////////// Genome //////////
 
     /**
-     * Genome search
+     * Genome Search
      * GET [base_url/genomes/search/term]
      *
      * @param searchTerm a text string to search on
@@ -111,7 +113,7 @@ public class CoGe {
     }
 
     /**
-     * Genome fetch - used to populate the genomes
+     * Genome Fetch - populate a Genome
      * GET [base_url/genomes/id]
      * 
      * @param id the genome id
@@ -122,8 +124,8 @@ public class CoGe {
     }
 
     /**
-     * Genome fetch sequence - grab the full sequence response.
-     * GET [​base_url/genomes/​id/sequence]
+     * Genome Fetch Sequence - grab the full sequence response (a FASTA)
+     * GET [​base_url]/genomes/​id/sequence
      *
      * @param id the genome id
      */
@@ -138,8 +140,8 @@ public class CoGe {
     }
 
     /**
-     * Genome fetch sequence - grab a subsequence.
-     * GET [​base_url/genomes/​id/sequence/​chr?start=x&stop=y]
+     * Genome fetch sequence - grab a subsequence (FASTA)
+     * GET [​base_url]/genomes/​id/sequence/​chr?start=x&stop=y
      *
      * @param id the genome id
      * @param chr the chromosome name
@@ -157,7 +159,49 @@ public class CoGe {
     }
 
     /**
-     * Add a new genome from iRODS. The response will contain the genome id if successful.
+     * Genome fetch sequence - an entire chromosome (FASTA)
+     * GET [​base_url]/genomes/​id/sequence/​chr
+     *
+     * @param id the genome id
+     * @param chr the chromosome name
+     */
+    public String fetchChromosomeSequence(int id, String chr) throws IOException, JSONException {
+        String url = baseUrl+"/genomes/"+id+"/sequence/"+chr;
+        JSONResource jr = resty.json(url);
+        InputStream stream = jr.stream();
+        StringBuffer buffer = new StringBuffer();
+        int i = 0;
+        while ((i=stream.read())!=-1) buffer.append((char)i);
+        return buffer.toString();
+    }
+
+    /**
+     * Genome fetch features - grab the features of the given type
+     * GET [base_url]/genomes/id/features/type
+     *
+     * @param id the genome id
+     * @param type the feature type (e.g. gene)
+     */
+    public List<Feature> fetchGenomeFeatures(int id, String type) throws IOException, JSONException {
+        String url = baseUrl+"/genomes/"+id+"/features/"+type;
+        List<JSONObject> jsons = new ArrayList<JSONObject>();
+        JSONResource jr  = resty.json(url);
+        JSONObject jo = jr.object();
+        if (id==jo.getInt("id")) {
+            JSONArray ja = jo.getJSONArray("features");
+            ArrayList<Feature> features = new ArrayList<Feature>();
+            for (int i=0; i<ja.length(); i++) {
+                features.add(new Feature(ja.getJSONObject(i)));
+            }
+            return features;
+        } else {
+            return null;
+        }
+    }
+
+
+    /**
+     * Genome Add
      * PUT [base_url/genomes]
      *
      * @param genome the genome to add to CoGe, with as many fields populated as you can (but lacking id, of course).
@@ -189,9 +233,7 @@ public class CoGe {
     }
 
     /**
-     * Update a genome with the non-null/zero values contained in the supplied Genome object. The genome must at least have its id value set.
-     * The response simply carries the success flag. 
-     * THIS IS NOT YET IMPLEMENTED AS OF 2/17
+     * Genome Update -- THIS IS NOT YET IMPLEMENTED AS OF 2/17
      * POST [base_url/genomes/id]
      *
      * @param genome the genome instance which is used to update its CoGe version; id is essential, other fields are updated if populated.
@@ -217,8 +259,7 @@ public class CoGe {
     }
 
     /**
-     * Delete a genome. Returns success boolean. Genome only requires an id.
-     * THIS IS NOT YET IMPLEMENTED AS OF 2/17
+     * Genome Delete -- THIS IS NOT YET IMPLEMENTED AS OF 2/17
      * DELETE [base_url/genomes/id]
      *
      * @param genome the genome to delete from CoGe. Only the id is used.
@@ -234,10 +275,31 @@ public class CoGe {
         return cogeResponse.getSuccess();
     }
 
+    
+    // https://geco.iplantcollaborative.org/coge-qa/coge/api/v1/genomes/16911/features/
+    // https://geco.iplantcollaborative.org/coge-qa/coge/api/v1/genomes/16911/features/gene
+    // https://geco.iplantcollaborative.org/coge-qa/coge/api/v1/genomes/16911/features/CDS
+    // {
+    //     "id": 16911,
+    //     "features": [
+    //         {
+    //             "start": 352637,
+    //             "chromosome": "1",
+    //             "strand": -1,
+    //             "type": "gene",
+    //             "id": 306206750,
+    //             "stop": 354969
+    //         },
+    //             ...
+    //     ]
+    // }
+
+
+
     ////////// Feature //////////
 
     /**
-     * Feature search
+     * Feature Search
      * GET [base_url/features/search/term]
      *
      * @param searchTerm a text string to search on
@@ -274,7 +336,7 @@ public class CoGe {
     }
 
     /**
-     * Feature fetch sequence - grab the feature's sequence.
+     * Feature Fetch Sequence - grab the feature's sequence.
      * GET [​base_url/features/​id/sequence]
      *
      * @param id the feature id
@@ -331,7 +393,7 @@ public class CoGe {
     ////////// Experiment //////////
 
     /**
-     * Experiment search
+     * Experiment Search
      * GET [base_url/experiments/search/term]
      *
      * @param searchTerm a text string to search on
@@ -345,7 +407,7 @@ public class CoGe {
     }
 
     /**
-     * Experiment fetch - used to populate the genomes
+     * Experiment Fetch - used to populate the genomes
      * GET [base_url/experiments/id]
      * 
      * @param id the experiment id
@@ -358,7 +420,7 @@ public class CoGe {
     ////////// Notebook //////////
 
     /**
-     * Notebook search
+     * Notebook Search
      * GET [base_url/notebooks/search/term]
      *
      * @param searchTerm a text string to search on
@@ -372,7 +434,7 @@ public class CoGe {
     }
 
     /**
-     * Notebook fetch - used to populate the genomes
+     * Notebook Fetch - used to populate the genomes
      * GET [base_url/notebooks/id]
      * 
      * @param id the notebook id
@@ -382,6 +444,33 @@ public class CoGe {
         return new Notebook(json);
     }
 
+    /**
+     * Notebook Add Items
+     * POST [base_url/notebooks/id/items/add]
+     *
+     * @param notebook the notebook to add the items to
+     * @param items a map containing the Integer item id and String "genome" or "experiment"
+     * @return true if the items add was successful
+     */
+    public boolean addItemsToNotebook(Notebook notebook, Map<Integer,String> items) throws CoGeException, IOException, JSONException {
+        if (username==null || token==null) throw CoGeException.missingAuthException();
+        String url = baseUrl+"/notebooks/"+notebook.getId()+"/items/add?username="+username+"&token="+token;
+        JSONArray ja = new JSONArray();
+        for (Integer id : items.keySet()) {
+            String type = items.get(id);
+            JSONObject jo = new JSONObject();
+            jo.put("id", (int)id);
+            jo.put("type", type);
+            ja.put(jo);
+        }
+        JSONObject json = new JSONObject();
+        json.put("items", ja);
+        JSONResource resource = resty.json(url, Resty.content(json));
+        JSONObject response = resource.object();
+        if (isError(response)) throw new CoGeException(response);
+        CoGeResponse cogeResponse = new CoGeResponse(response);
+        return cogeResponse.getSuccess();
+    }
 
     ////////// Group //////////
 

@@ -16,7 +16,7 @@ public class Feature {
 
     int id;
     String type;
-
+    String name;
     String chromosome;
     Genome genome;
     int start;
@@ -59,10 +59,11 @@ public class Feature {
     /**
      * Construct from a JSON object and CoGe instance (because we may need to fetch the genome).
      */
-    protected Feature (JSONObject json, CoGe coge) throws IOException, JSONException {
+    protected Feature(JSONObject json, CoGe coge) throws IOException, JSONException {
         if (json.has("id")) {
             id = json.getInt("id");
             type = json.getString("type");
+            name = json.getString("name");
             if (json.has("chromosome")) chromosome = json.getString("chromosome");
             if (json.has("genome")) {
                 JSONObject go = json.getJSONObject("genome");
@@ -76,6 +77,21 @@ public class Feature {
         }
     }
 
+    /**
+     * Construct from a JSON object without instantiating the genome (so CoGe instance not needed)
+     */
+    protected Feature(JSONObject json) throws IOException, JSONException {
+        if (json.has("id")) {
+            id = json.getInt("id");
+            type = json.getString("type");
+            name = json.getString("name");
+            if (json.has("chromosome")) chromosome = json.getString("chromosome");
+            if (json.has("start")) start = json.getInt("start");
+            if (json.has("stop")) stop = json.getInt("stop");
+            if (json.has("strand")) strand = json.getInt("strand");
+            if (json.has("sequence")) sequence = json.getString("sequence");
+        }
+    }
 
     ////////// getters and setters //////////
 
@@ -85,6 +101,10 @@ public class Feature {
 
     public String getType() {
         return type;
+    }
+
+    public String getName() {
+        return name;
     }
     
     public String getChromosome() {

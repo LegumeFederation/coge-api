@@ -23,21 +23,21 @@ public class Notebook extends CoGeObject {
     /**
      * Construct given id, name, description but not notebooks.
      */
-    protected Notebook(int id, String name, String description) {
+    public Notebook(int id, String name, String description) {
         super(id, name, description);
     }
 
     /**
      * Construct from an instantiated superclass.
      */
-    protected Notebook(CoGeObject object) {
+    public Notebook(CoGeObject object) {
         super(object);
     }
 
     /**
      * Construct from a JSONObject.
      */
-    protected Notebook(JSONObject json) throws IOException, JSONException {
+    public Notebook(JSONObject json) throws IOException, JSONException {
         super(json);
         if (json.has("type")) type = json.getString("type");
         if (json.has("restricted")) restricted = json.getBoolean("restricted");

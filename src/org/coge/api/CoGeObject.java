@@ -65,46 +65,25 @@ public class CoGeObject {
         this.description = object.description;
     }
 
-    /**
-     * Set the id.
-     */
+    public int getId() {
+        return id;
+    }
     public void setId(int id) {
         this.id = id;
     }
 
-    /**
-     * Set the name.
-     */
+    public String getName() {
+        return name;
+    }
     public void setName(String name) {
         this.name = name;
     }
 
-    /**
-     * Set the description.
-     */
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    /**
-     * Return the id.
-     */
-    public int getId() {
-        return id;
-    }
-
-    /**
-     * Return the name.
-     */
-    public String getName() {
-        return name;
-    }
-
-    /**
-     * Return the description.
-     */
     public String getDescription() {
         return description;
+    }
+    public void setDescription(String description) {
+        this.description = description;
     }
 
 }

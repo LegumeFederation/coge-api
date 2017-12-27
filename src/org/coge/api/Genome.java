@@ -23,8 +23,10 @@ public class Genome extends CoGeObject {
     boolean restricted = true; // default to restricted
     boolean deleted = false;   // default to not deleted
     int chromosomeCount;
+    
     List<Metadata> additionalMetadata;
     List<Integer> experiments;
+    List<FeatureType> featureTypes;
 
     /**
      * Construct given id, name, description.
@@ -76,6 +78,14 @@ public class Genome extends CoGeObject {
             JSONArray exparray = json.getJSONArray("experiments");
             for (int i=0; i<exparray.length(); i++) {
                 experiments.add(exparray.getInt(i));
+            }
+        }
+        if (json.has("feature_types")) {
+            featureTypes = new ArrayList<FeatureType>();
+            JSONArray featarray = json.getJSONArray("feature_types");
+            for (int i=0; i<featarray.length(); i++) {
+                JSONObject jo = featarray.getJSONObject(i);
+                featureTypes.add(new FeatureType(jo));
             }
         }
     }
@@ -154,6 +164,10 @@ public class Genome extends CoGeObject {
 
     public List<Integer> getExperiments() {
         return experiments;
+    }
+
+    public List<FeatureType> getFeatureTypes() {
+        return featureTypes;
     }
 
 }

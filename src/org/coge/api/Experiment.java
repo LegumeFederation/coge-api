@@ -53,7 +53,9 @@ public class Experiment extends CoGeObject {
                 JSONArray typarray = json.getJSONArray("types");
                 for (int i=0; i<typarray.length(); i++) {
                     JSONObject type = typarray.getJSONObject(i);
-                    types.put(type.getString("name"), type.getString("description"));
+                    if (type.has("name") && type.has("description")) {
+                        types.put(type.getString("name"), type.getString("description"));
+                    }
                 }
             }
             if (json.has("restricted")) restricted = json.getBoolean("restricted");
@@ -69,30 +71,51 @@ public class Experiment extends CoGeObject {
     }
 
 
+    public String getLink() {
+        return link;
+    }
     void setLink(String link) {
         this.link = link;
     }
 
+    public String getVersion() {
+        return version;
+    }
     void setVersion(String version) {
         this.version = version;
     }
 
+    public int getGenomeId() {
+        return genomeId;
+    }
     void setGenomeId(int genomeId) {
         this.genomeId = genomeId;
     }
 
+    public String getSource() {
+        return source;
+    }
     void setSource(String source) {
         this.source = source;
     }
 
+    public Map<String,String> getTypes() {
+        return types;
+    }
     void setTypes(Map<String,String> types) {
         this.types = types;
     }
     
+    public boolean isRestricted() {
+        return restricted;
+    }
     void setRestricted(boolean restricted) {
         this.restricted = restricted;
     }
 
+    public List<Metadata> getAdditionalMetadata() {
+        return additionalMetadata;
+    }
     void setAdditionalMetadata(List<Metadata> additionalMetadata) {
         this.additionalMetadata = additionalMetadata;
     }
